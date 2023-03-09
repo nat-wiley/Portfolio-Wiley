@@ -1,0 +1,198 @@
+---
+title: "GA Electricity Emissions"
+---
+
+This project includes R Script that estimated emissions from electricity usage in the state of Georgia from 1960 - 2015, calculated every ten years. This is a tier 2 analysis because we use local data and baseline emission factors from the 2006 IPCC guidelines. This is a Monte Carlo model that runs the data through multiple iterations to get the most accurate results.
+
+### Model Implementation R Script
+
+```{r eval=FALSE}
+Results.electricity<-ElectricityGenerationEmissions(input.filename="GAelectricity.csv", fuel.types=6, nyears=7, iseed=430983, nreps = 10000)
+years<- c(1960,1970,1980,1990,2000,2010,2015)
+
+```
+
+### Electricity Emissions R Script
+
+```{r eval=FALSE}
+"ElectricityGenerationEmissions"<-
+  function(input.filename="NAME", fuel.types=6,iseed=430983, nyears=7, nreps=10000)
+    # Script developed by Natalie Wiley
+    # Originally Developed: February 18th, 2022
+    # Last Update: February 18th, 2022
+    # Script estimates CO2, CH4, and N2O emissions from electricity generation from stationary sources using Tier 1 methods from the 2006 IPCC guidelines
+    # Returns MMT CO2 equivalents for each scenario
+    #
+    ###### Arguments
+    # input.filename    Name of file with activity data, which is comma delimited file with the input activity data in columns along with a header row as follows: fuel type, CO2 emission factor, min. CO2 emission factor, max. CO2 emission factor, CH4 emission factor, min. CH4 emission factor, max. CH4 emission factor, N2O emission factor, min. N2O emission factor, max. N2O emission factor, fuel amount for year 1 (in TJ), standard deviation for fuel amount,...for all years.
+    # fuel.types        Number of fuel types in the input file
+    # nyears            Number of years of data
+    # iseed             Initial seed value for random draws
+    # nreps             Number of Monte Carlo iterations
+    ##
+    ###### Begin Script
+  {
+    ###### Set Seed
+    set.seed(iseed)
+    #
+    ###### Load library
+    library(triangle)
+    ###### Import files
+    input.data<-read.csv(file=input.filename, header=TRUE, sep=",", fill=FALSE)
+    # ensure all input data on fuel amounts and EFs are numeric (problem with excel)
+
+    
+      for(n in (1:(9+(nyears*2)))){
+        input.data[,n+1]<-as.numeric(input.data[,n+1])
+      }
+    #
+    ###Check Validity of Input Data
+    check.fuel.type<-length(input.data[,1])==fuel.types
+    if(!check.fuel.type) {stop("Warning the number of fuel types in the function call
+                               does not equal the number in the input file.")}
+    # Emissions Factors
+    for(efact in (1:fuel.types)){
+      check.CO2.EF<-input.data[efact,2]>=0
+      if(!check.CO2.EF) {stop("Error: Co2 EF must be greater than or equal to 0
+                             - check input file.")
+      }
+      check.CO2.EF.min<-input.data[efact,3]<=input.data[efact,2]&input.data[efact,3]>=0
+      if(!check.CO2.EF.min) {stop("Error: Minimum CO2 EF must be greater than or equal to 0
+                                 and less than the EF value - Check input file.")
+      }
+      Check.CO2.EF.max<-input.data[efact,4]>=input.data[efact,2]
+      if(!Check.CO2.EF.max) {stop("Error: Maximum CO2 EF must be greater than or
+                                  equal to EF value - check input file.")
+      }
+      
+      check.CH4.EF<-input.data[efact,5]>=0
+      if(!check.CH4.EF) {stop("Error: CH4 EF must be greater than or equal to 0
+                             - check input file.")
+      }
+      check.CH4.EF.min<-input.data[efact,6]<=input.data[efact,5]&input.data[efact,6]>=0
+      if(!check.CH4.EF.min) {stop("Error: Minimum CH4 EF must be greater than or equal to 0
+                                 and less than the EF value - Check input file.")
+      }
+      Check.CH4.EF.max<-input.data[efact,7]>=input.data[efact,5]
+      if(!Check.CH4.EF.max) {stop("Error: Maximum CH4 EF must be greater than or
+                                  equal to EF value - check input file.")
+      }
+      
+      check.N2O.EF<-input.data[efact,8]>=0
+      if(!check.N2O.EF) {stop("Error: N2O EF must be greater than or equal to 0
+                             - check input file.")
+      }
+      check.N2O.EF.min<-input.data[efact,9]<=input.data[efact,8]&input.data[efact,6]>=0
+      if(!check.N2O.EF.min) {stop("Error: Minimum N2O EF must be greater than or equal to 0
+                                 and less than the EF value - Check input file.")
+      }
+      Check.N2O.EF.max<-input.data[efact,10]>=input.data[efact,8]
+      if(!Check.N2O.EF.max) {stop("Error: Maximum N2O EF must be greater than or
+                                  equal to EF value - check input file.")
+      }
+      
+    }
+    #
+    # Check Fuel Amounts
+    for(y in (1:nyears)){
+      for (f in (1:fuel.types)){
+        check.fuel.amount<-input.data[f,11+((y-1)*2)]>=0
+        if(!check.fuel.amount) {stop("Error: Fuel amounts must be greater than or equal to 0
+                                     - Check input file.")
+        }
+        check.fuel.sd<-input.data[f,12+((y-1)*2)]>=0
+        if(!check.fuel.sd) {stop("Error: Fuel Standard Deciations must be greater than or equal to 0
+                                 - Check input file.")
+        }
+      }
+    }
+    #
+    #### Simulate nreps of EF and Fuel Amounts
+    ## Emission Factors
+    # CO2
+    CO2.EF.sim<-matrix(0,nrow=fuel.types,ncol = nreps)
+    for( f in (1:fuel.types)) {
+      CO2.EF.sim[f,]<-rtriangle(nreps, a=input.data[f,3],b=input.data[f,4],
+                                c=input.data[f,2])
+    }
+    # CH4
+    CH4.EF.sim<-matrix(0,nrow=fuel.types,ncol = nreps)
+    for( f in (1:fuel.types)) {
+      CH4.EF.sim[f,]<-rtriangle(nreps, a=input.data[f,6],b=input.data[f,7],
+                                c=input.data[f,5])
+    }
+    # N2O
+    N2O.EF.sim<-matrix(0,nrow=fuel.types,ncol = nreps)
+    for( f in (1:fuel.types)) {
+      N2O.EF.sim[f,]<-rtriangle(nreps, a=input.data[f,9],b=input.data[f,10],
+                                c=input.data[f,8])
+    }
+    ### Fuel Amount
+    fuel.amount.sim<-matrix(0,nrow=fuel.types*nyears,ncol=nreps)
+    for(y in (1:nyears)){
+      for(f in (1:fuel.types)){
+        fuel.amount.sim[f+(fuel.types*(y-1)),]<-rnorm(nreps,mean=input.data[f,11+((y-1)*2)],
+                                                      sd=input.data[f,12+((y-1)*2)])
+      }
+    }
+   ###### Calculate emissions
+    # IPCC 2006 GL: Emissions = Fuel Consumption * EF
+    # Units: Emissions in kg, Fuel.amount in TJ and EF is kg/TJ
+    ### Deterministic Estimation
+    Deterministic.CO2eq<-matrix(0, nrow=fuel.types, ncol=nyears)
+    for (y in (1:nyears)){
+      for (d in (1:fuel.types)){
+        Deterministic.CO2eq[d,y]<-(input.data[d,2]*input.data[d,11+((y-1)*2)])+
+                                  (input.data[d,5]*input.data[d,11 +((y-1)*2)])*25 +
+          (input.data[d,8]*input.data[d,11 +((y-1)*2)])*298
+      }
+    }
+    # Sum the individual fuel sources to obtain total CO2eq emissions
+      Deterministic.CO2eq.total<-apply(Deterministic.CO2eq, MAR=2, FUN="sum")
+      #
+      ### Probabilistic Estimation
+      Probabilistic.CO2eq<-matrix(0, nrow=fuel.types*nyears, ncol=nreps)
+      for (y in (1:nyears)){
+        for (p in (1:fuel.types)){
+          Probabilistic.CO2eq[p+(fuel.types*(y-1)),]<-
+            ((CO2.EF.sim[p,]*fuel.amount.sim[p+(fuel.types*(y-1)),]))+
+            ((CH4.EF.sim[p,]*fuel.amount.sim[p+(fuel.types*(y-1)),])*25)+
+            ((N2O.EF.sim[p,]*fuel.amount.sim[p+(fuel.types*(y-1)),])*298)
+        }
+      }
+    
+    # Sum the individual fuel sources to obtain total CO2eq emissions
+      Probabilistic.CO2eq.total<-matrix(0, nrow=nyears, ncol=nreps)
+      for (y in (1:nyears)){
+        Probabilistic.CO2eq.total[y,]<-apply (Probabilistic.CO2eq[(1+((y-1)*fuel.types)): 
+                                                                    (fuel.types+ ((y-1)*fuel.types)),],MAR=2, FUN="sum")
+      }
+      
+      #
+      ###### Estimate median and confidence intervals, check emissions
+      
+      #
+      # Create matrix with col 1 = mean, col 2 = 2.5 percentile, and col 3 = 97.5 percentile
+      emission.results<-matrix(0, nrow=nyears, ncol=3)
+      for (y in (1:nyears)){
+        emission.results[y,1]<- median(Probabilistic.CO2eq.total[y,])
+        q<-quantile(Probabilistic.CO2eq.total[y,], probs = c(0.025, 0.975))
+        emission.results[y,2]<- q[1]
+        emission.results[y,3]<- q[2]
+        check.emissions<- Deterministic.CO2eq.total[y]>=emission.results[y,2]&
+          Deterministic.CO2eq.total[y]<=emission.results[y,3]
+        if(!check.emissions){ 
+          cat("WARNING: Deterministic Solution for year", y, "is outside of its respective condifence interval.")
+          }
+      }
+      
+      ###### Return Statement
+      # Convert emissions to MMT CO2 from kg CO2
+      emission.results<-emission.results/10^9
+      colnames(emission.results)<-c("median.MMTCO2", "2.5 Percentile", "97.5 Percentile")
+      return(emission.results)
+      #
+      ###### End Script
+  }
+    
+```

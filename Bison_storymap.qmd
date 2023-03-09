@@ -1,0 +1,13 @@
+---
+title: "COP27 Presentation - SDG 15 & Soapstone Bison"
+---
+
+This story map covers a case study of Sustainable Development Goal (SDG) 15, focusing on the Soapstone Bison reintroduction in Northern Colorado. I had the pleasure of presenting our case study for the YEAH Network in Sharm El- Sheikh, Egypt in front of global leaders to address climate impacts.
+
+> SDG 15 is Life on Land
+
+[A Success Story of Soapstone Bison - ArcGIS Story Map](https://storymaps.arcgis.com/stories/83d7e2f5707845d799b12818114ebf5e)
+
+![](images/image-314053676.png)
+
+![](images/image-1409893543.png)

@@ -1,0 +1,180 @@
+---
+title: "Urea Emissions Estimation"
+---
+
+This R Script uses a function that estimates CO2e emissions from urea fertilizer application across all 50 US states using methodology from the 2006 IPCC Guidelines.
+
+This estimation returns gigagrams CO2e emissions for each state and then US totals for the years 1990-2020
+
+```{r eval=FALSE}
+
+UreaEmissionsUS<-
+  function(input.filename="NAME", nyears=1, nstates=1, EF.mean=1, EF.min=1, EF.max=1, iseed=1234, nreps=10000)
+    #Script Developed by: N Wiley
+   # Originally Developed: August 24th, 2022
+    # Last Update:
+    # Script estimates CO2 emissions from urea fertilizer application across all 50 US states using Tier methodology from the 2006 IPCC Guidelines
+    #Returns Gigagrams CO2 emissions for each state and then US totals for the years 1990-2020
+    # Input.filename was originially in units of N fertilizer Metric Tonnes but was then converted to urea fertilizer in metric tonnes
+    
+    #-------Arguments--------
+    #input.filename <---- Name of file with activity data, which is a comma delimited (CSV) file
+                          #activity data is in metric tonnes of urea fertilizer
+# EFmean <------- 0.2
+# EFmin <----- 0.1
+# EFmax <----- 0.2
+# nyears <-----31
+# nstates <------ 50
+
+{
+  #set the seed
+  set.seed(iseed)
+  
+  # Load libraries
+  library(triangle)
+  
+  # Import input file
+ input.data<-read.csv(file="data/Ureafert.csv", header = TRUE, fill=FALSE)
+  
+  #---------Data Checks---------
+  #
+  # Check that urea amounts are numeric
+  
+  for (n in 1:(nyears*2)){
+    input.data[,n+1] <- as.numeric(input.data[,n+1])
+  }
+  #
+  #Check that SD's are numeric
+  
+  for(n in 1:(nyears*2)){
+    input.data[,n+1]<-as.numeric(input.data[,n+1])
+  }
+  
+  # Validity checks that urea.amount and SD's are within the expected min and max range
+  for(y in (1:nyears)){
+    for(s in (1:nstates)){
+      check.urea.amount <- length(input.data[s,y+1]) > 0 
+      if(!check.urea.amount){stop("Warning: Urea amount is not greater than 0")}
+    }
+        }
+  #
+#---------Deterministic Results--------
+  
+  Deterministic.CO2C.state<-matrix(0, nrow=nstates, ncol=nyears)
+    for(y in (1:nyears)){
+      for(s in (1:nstates)){
+        Deterministic.CO2C.state[s,y]<- input.data[s,(y*2)]*EF.mean
+      }
+    }
+  
+# Sum the state CO2-C emissions for grand totals in each year
+  Deterministic.CO2C.USA<-apply(Deterministic.CO2C.state, MAR=2, FUN="sum")
+
+  
+# Convert state and total CO2-C Emissions (in Metric Tonnes) to CO2e in Gigagrams
+  ### 44/12 converts CO2-C to CO2e
+  ### 10^6 converts metric tonnes to gigagrams
+  Deterministic.CO2C.state<-(Deterministic.CO2C.state*(44/12))/10^6
+  Deterministic.CO2C.USA<-(Deterministic.CO2C.USA*(44/12))/10^6
+  
+#--------Probabilistic Results----------
+  
+#simulate nreps for EFmean
+  ### the EF shows a triangle distribution so there is a min, max, and mean EF
+  
+  EF.sim<-rtriangle(nreps, a=EF.min, b=EF.max, c=EF.mean)
+  
+# Simulate nreps for urea inputs
+  urea.sim<-matrix(0, nrow=nstates*nyears, ncol=nreps)
+  for(y in (1:nyears)){
+    for(s in (1:nstates)){
+      urea.sim[s+((y-1)*50),]<-rnorm(nreps, mean=input.data[s,(y*2)], sd=input.data[s,3+((y-1)*2)])
+    }
+  }
+  
+# Estimate probabilistic results (in CO2-C for individual state totals and then year totals)
+  ### Remember that this is now a triangle distribution, so we need to account for the mode instead of the median
+  
+ ### Estimate the state total emissions for each year
+  
+   Probabilistic.CO2C.state<-matrix(0, nrow=nstates*nyears, ncol=nreps)
+  for(y in (1:nyears)){
+    for(s in (1:nstates)){
+      Probabilistic.CO2C.state[s+((y-1)*nstates),]<- EF.sim*urea.sim[s+((y-1)*nstates),]
+    }
+  }
+
+# Sum the US and state totals for all 31 years (remember to convert from metric tonnes to gigagrams 10^6 and convert CO2-C to CO2 44/12)
+  
+### Get the MODE for the states emissions, create mode function
+  mode<-function(x,n=2){
+    x<-round(x,n)
+    u<-unique(x)
+    u[which.max(tabulate(match(x,u)))]
+ 
+}
+  
+### Sum the probabilistic emissions
+  Probabilistic.CO2C.totalUS<-matrix(0, nrow=nyears, ncol=nreps)
+  for(y in (1:nyears)){
+    Probabilistic.CO2C.totalUS[y,]<-apply(Probabilistic.CO2C.state[(1+(50*(y-1))):(50+(50*(y-1))),], MAR=2, FUN="sum")}
+
+
+  #------US Totals: Estimate mode and confidence intervals--------
+  
+  CO2C.USemission.results<-matrix(0, nrow=nyears, ncol=3)
+  for (y in (1:nyears)){
+    CO2C.USemission.results[y,1]<- mode(Probabilistic.CO2C.totalUS[y,])
+    q<-quantile(Probabilistic.CO2C.totalUS[y,], probs = c(0.05, 1))
+    CO2C.USemission.results[y,2]<- q[1]
+    CO2C.USemission.results[y,3]<- q[2]
+  }
+  
+
+    
+### Convert US total CO2-C Emissions (in Metric Tonnes) to CO2e in Gigagrams
+    ### 44/12 converts CO2-C to CO2e
+    ### 10^6 converts metric tonnes to gigagrams
+    CO2.USemission.results<-(CO2C.USemission.results*(44/12))/10^6
+ 
+    
+  #------Yearly state totals:Estimate mode and confidence intervals--------
+    
+  CO2C.Stateemission.results<-matrix(0, nrow=nstates*nyears, ncol=3)
+    for(y in (1:(nyears*nstates))){
+      CO2C.Stateemission.results[y,1]<- mode(Probabilistic.CO2C.state[y,])
+      q<-quantile(Probabilistic.CO2C.state[y,], probs = c(0.05, 1))
+      CO2C.Stateemission.results[y,2]<- q[1]
+      CO2C.Stateemission.results[y,3]<- q[2]
+
+    }
+    ### Convert State  CO2-C Emissions (in Metric Tonnes) to CO2e in Gigagrams
+    ### 44/12 converts CO2-C to CO2e
+    ### 10^6 converts metric tonnes to gigagrams
+    CO2.Stateemission.results<-(CO2C.Stateemission.results*(44/12))/10^6
+    
+    #
+    
+  #-----------Return Statement------------
+    
+    ### Total US Results
+    CO2.USemission.results<-CO2.USemission.results
+    colnames(CO2.USemission.results)<-c("mode.GgCO2", "5  Percentile", "100 Percentile")
+    
+    
+    ### Results by state for each year
+    CO2.Stateemission.results<-CO2.Stateemission.results
+    colnames(State.emission.results)<-c("mode.GgCO2", "5  Percentile", "100 Percentile")
+    
+    
+    
+    #
+    ###### End Script
+  }
+
+
+```
+
+```{r eval=FALSE}
+Final_UreaEmission <-UreaEmissionsUS(input.filename="data/Ureafert.csv")
+```

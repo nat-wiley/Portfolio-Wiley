@@ -1,0 +1,374 @@
+---
+title: "Custom Soil Emission Factors"
+---
+
+Creating custom emission factors to assess soil carbon stock using multiple management practices. These custom emission factors were ran using linear mixed effect modeling practices shown in the R Script below.
+
+```{r}
+#Estimating Emission Factors using a linear mixed effect model (LME)
+
+  #LME model using backwards stepwise method
+
+  #Using mixed effect model because we have fixed and random variables
+
+#----load nlme package (linear and non linear mixed effects model)-----
+
+library(nlme)
+
+#----Read in EF input file----
+
+LU.data<-read.csv("data/SoilCCult.csv", header=TRUE)
+
+management.data<-read.csv("data/SoilCManagement.csv", header=TRUE)
+
+Cinput.data<-read.csv("data/SoilCInput.csv", header=TRUE)
+
+#-----Test for correlation in predictor variables-------
+
+cor(LU.data[,c("years", "years2", "dep1", "dep2")])
+
+cor(management.data[,c("years", "years2", "dep1", "dep2")])
+
+cor(Cinput.data[,c("years", "years2", "dep1", "dep2")])
+
+#----Data check via Visualization----
+
+###Aquic
+
+barplot(table(Cinput.data$aquic),ylab = "Times appeared in Data", main= "aquic")
+
+barplot(table(management.data$aquic),ylab = "Times appeared in Data", main= "aquic")
+
+barplot(table(LU.data$aquic),ylab = "Times appeared in Data", main= "aquic")
+
+###Years and Years2 (years squared)
+
+barplot(table(Cinput.data$years),ylab = "Times appeared in Data", main= "years")
+
+barplot(table(management.data$years),ylab = "Times appeared in Data", main= "years")
+
+barplot(table(LU.data$years),ylab = "Times appeared in Data", main= "years")
+
+###Top and bottom
+
+barplot(table(Cinput.data$top),ylab = "Times appeared in Data", main= "top")
+
+barplot(table(management.data$top),ylab = "Times appeared in Data", main= "top")
+
+barplot(table(LU.data$top),ylab = "Times appeared in Data", main= "top")
+
+barplot(table(Cinput.data$bottom),ylab = "Times appeared in Data", main= "bottom")
+
+barplot(table(management.data$bottom),ylab = "Times appeared in Data", main= "bottom")
+
+barplot(table(LU.data$bottom),ylab = "Times appeared in Data", main= "bottom")
+
+###Temp
+
+barplot(table(Cinput.data$ipcc.temp),ylab = "Times appeared in Data", main= "Temp")
+
+barplot(table(management.data$ipcc.temp),ylab = "Times appeared in Data", main= "Temp")
+
+barplot(table(LU.data$ipcc.temp),ylab = "Times appeared in Data", main= "Temp")
+
+###Precipitation
+
+barplot(table(Cinput.data$ipcc.pre),ylab = "Times appeared in Data", main= "Precipitation Climate")
+
+barplot(table(management.data$ipcc.pre),ylab = "Times appeared in Data", main= "Precipitation Climate")
+
+barplot(table(LU.data$ipcc.pre),ylab = "Times appeared in Data", main= "Precipitation Climate")
+
+###Soil type
+
+barplot(table(Cinput.data$ipcc.soil),ylab = "Times appeared in Data", main= "Soil Type")
+
+barplot(table(management.data$ipcc.soil),ylab = "Times appeared in Data", main= "Soil Type")
+
+barplot(table(LU.data$ipcc.soil),ylab = "Times appeared in Data", main= "Soil Type")
+
+#_____________________________________________________________________________________________________
+
+  #MANAGEMENT MODEL DEVELOPMENT
+
+#-------Test full model with all variables as main effects-------
+
+test.fit<-lme(ch.cstock~ch.till+years+years2+dep1+dep2+aquic+ipcc.soil+ipcc.pre+ipcc.temp,
+
+              random = ~1|ran.exp/ran.yrexp, data = management.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+#--------Diagnostic Plots, Residual Plot--------- #do residual plot after test.fit model for all variables
+
+resid<-residuals(test.fit)
+
+plot(fitted(test.fit), resid)
+
+abline(0,0)
+
+### QQ normal plot
+
+qqnorm(resid)
+
+qqline(resid)
+
+#-----Remove variables w/ high p-values to see if it improves the model------
+
+###Using backwards stepwise method
+
+###If AIC goes UP by 2, it means the variable I took away was important. If it goes down by 2, the variable was not important
+
+#___removed years2 because high p value___
+
+test.fit<-lme(ch.cstock~ch.till+years+dep1+dep2+aquic+ipcc.soil+ipcc.pre+ipcc.temp,
+
+              random = ~1|ran.exp/ran.yrexp, data = management.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+### AIC went from -74 to -76, is that considered up or down in this case? I think down… so we keep years2?
+
+###leaving out years2 because we want the model as simple as possible
+
+#___removed ipcc.temp because high p value___
+
+test.fit<-lme(ch.cstock~ch.till+years+dep1+dep2+aquic+ipcc.soil+ipcc.pre,
+
+              random = ~1|ran.exp/ran.yrexp, data = management.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+###changed AIC from -76 to -78, leaving out ipcc.temp
+
+#____Removed aquic_____
+
+test.fit<-lme(ch.cstock~ch.till+years+dep1+dep2+ipcc.soil+ipcc.pre,
+
+              random = ~1|ran.exp/ran.yrexp, data = management.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+###Leaving out aquic because AIC changed from -78 to -81
+
+#____removing ipcc.soil____
+
+test.fit<-lme(ch.cstock~ch.till+years+dep1+dep2+ipcc.pre,
+
+              random = ~1|ran.exp/ran.yrexp, data = management.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+###Leaving out ipcc.soil  because AIC changed from -81 to -87
+
+#____removing ipcc.pre____*KEPT IPCC.PRE
+
+test.fit<-lme(ch.cstock~ch.till+years+dep1+dep2,
+
+              random = ~1|ran.exp/ran.yrexp, data = management.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+### Keeping ipcc.pre because AIC changed from -87 back to -81
+
+#----Best Fit Management Model-----
+
+test.fit.management<-lme(ch.cstock~ch.till+years+dep1+dep2+ipcc.pre,
+
+              random = ~1|ran.exp/ran.yrexp, data = management.data, method = "ML", na.action = na.omit)
+
+summary(test.fit.management)
+
+#____________________________________________________________________________________________________________
+
+  #cINPUT MODEL DEVELOPMENT
+
+#-------Test full model with all variables as main effects-------
+
+###Did not include soil type because it does not matter for Cinput data
+
+test.fit<-lme(ch.cstock~ch.inp+years+years2+dep1+dep2+aquic+ipcc.pre+ipcc.temp,
+
+              random = ~1|ran.exp/ran.yrexp, data = Cinput.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+#____Removing aquic because high p value____
+
+test.fit<-lme(ch.cstock~ch.inp+years+years2+dep1+dep2+ipcc.pre+ipcc.temp,
+
+              random = ~1|ran.exp/ran.yrexp, data = Cinput.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+###Leave out aquic
+
+#____Removing ipcc.pre_____
+
+test.fit<-lme(ch.cstock~ch.inp+years+years2+dep1+dep2+ipcc.temp,
+
+              random = ~1|ran.exp/ran.yrexp, data = Cinput.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+###Leave out ipcc.pre
+
+#_____Removing ipcc.temp____
+
+test.fit<-lme(ch.cstock~ch.inp+years+years2+dep1+dep2,
+
+              random = ~1|ran.exp/ran.yrexp, data = Cinput.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+#only brought down AIC by 1, might keep out? Means it really has no affect on the model, but we want the model as simple as possible anyway.
+
+###NOTE: Taking out years2 because it worsened the model
+
+#----Best Fit C Input Model-----
+
+test.fit.CInput<-lme(ch.cstock~ch.inp+years+dep1+dep2,
+
+              random = ~1|ran.exp/ran.yrexp, data = Cinput.data, method = "REML", na.action = na.omit)
+
+summary(test.fit.CInput)
+
+#________________________________________________________________________________________________
+
+  #LAND USE MODEL DEVELOPMENT
+
+#-------Test full model with all variables as main effects-------
+
+###Did not include soil type pr aquic because it does not matter for Cinput data because we did not have enough soil type representation or aquic sites to fully represent the model
+
+test.fit<-lme(ch.cstock~years+years2+dep1+dep2+ipcc.prec+ipcc.temp,
+
+              random = ~1|ran.exp/ran.yrexp, data = LU.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+#____Remove ipcc.prec____
+
+test.fit<-lme(ch.cstock~years+years2+dep1+dep2+ipcc.temp,
+
+              random = ~1|ran.exp/ran.yrexp, data = LU.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+###Keep ipcc.pre out
+
+#____Remove ipcc.temp____
+
+test.fit<-lme(ch.cstock~years+years2+dep1+dep2,
+
+              random = ~1|ran.exp/ran.yrexp, data = LU.data, method = "ML", na.action = na.omit)
+
+summary(test.fit)
+
+###Leave out ipcc.temp, AIC only changed by 1 so it has no significant effects on the model
+
+#----Best Fit Land Use Model----
+
+test.fit.LU<-lme(ch.cstock~years+years2+dep1+dep2,
+
+              random = ~1|ran.exp/ran.yrexp, data = LU.data, method = "ML", na.action = na.omit)
+
+summary(test.fit.LU)
+
+#______________________________________________________________________________________________
+
+### EF'S THEN CALCULATED IN EXCEL
+
+# Derive PDF for each model/EF
+
+###Land Use EF
+
+fixed.LU<-fixed.effects(test.fit.LU)
+
+LU.cov<-test.fit.LU$varFix
+
+x.LU<-c(1,75,5625,15,300)
+
+# Variance
+
+V.LU.EF<-(t(x.LU))%*%LU.cov%*%x.LU
+
+# Standard Deviation
+
+sqrt(V.LU.EF)
+
+#_________________________________________
+
+###CInput EF
+
+fixed.Cinput<-fixed.effects(test.fit.CInput)
+
+Cinput.cov<-test.fit.CInput$varFix
+
+X.Cinput.low<-c(1,1,75,15,300)
+
+X.Cinput.high<-c(1,0,75,15,300)
+
+# Variance
+
+V.Cinput.low<-(t(X.Cinput.low))%*%Cinput.cov%*%X.Cinput.low
+
+V.Cinput.high<-(t(X.Cinput.high))%*%Cinput.cov%*%X.Cinput.high
+
+# Standard Deviation
+
+sqrt(V.Cinput.low)
+
+sqrt(V.Cinput.high)
+
+#_________________________________________
+
+###Management EF
+
+fixed.management<-fixed.effects(test.fit.management)
+
+management.cov<-test.fit.management$varFix
+
+x.rt.wet<-c(1,1,20,15,300,1)
+
+x.nt.wet<-c(1,0,20,15,300,1)
+
+x.nt.dry<-c(1,0,20,15,300,0)
+
+x.rt.dry<-c(1,1,20,15,300,0)
+
+# Variance
+
+v.rt.wet<-(t(x.rt.wet))%*%management.cov%*%x.rt.wet
+
+v.nt.wet<-(t(x.nt.wet))%*%management.cov%*%x.nt.wet
+
+v.nt.dry<-(t(x.nt.dry))%*%management.cov%*%x.nt.dry
+
+v.rt.dry<-(t(x.rt.dry))%*%management.cov%*%x.rt.dry
+
+# Standard Deviation
+
+sqrt(v.rt.wet)
+
+sqrt(v.nt.wet)
+
+sqrt(v.nt.dry)
+
+sqrt(v.rt.dry)
+
+#_____________Export CSV files with my covariance matrix to run in cholesky decomp model for monte carlo__________________
+
+###CSV files
+
+#write.csv(data.frame(LU.cov), "LandUseCov.csv")
+
+#write.csv(data.frame(Cinput.cov), "CinputCov.csv")
+
+#write.csv(data.frame(management.cov), "MgmtCov.csv")
+
+#NOTE: always keep dep1 and dep2 when testing the model w/ AIC value and years
+```
+
+```{}
+```

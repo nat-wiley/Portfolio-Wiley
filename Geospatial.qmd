@@ -1,0 +1,7 @@
+---
+title: "Geospatial Data Analysis"
+---
+
+This is an exercise from a course taken during my Masters program. This problem set involved analyzing species occurrence data in conjunction with river distribution in Colorado. The R script below shows multiple mapping projections, spatial analysis, and calculations for species populations.
+
+### Geospatial R Script

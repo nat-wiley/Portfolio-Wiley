@@ -1,0 +1,122 @@
+---
+title: "Transportation Emissions"
+---
+
+This project contains R script that estimates carbon dioxide (CO2), nitrous oxide (N2O), and methane (CH4) emissions from road transportation using default equations from 2006 IPCC guidelines vol 2 ch 3. This is a tier 2 GHG calculation with results in million metric tonnes.
+
+### CO2 Transportation Emissions R Script
+
+```{r eval=FALSE}
+"CO2TransportEmissions"<-
+    function(CO2.EF=69300, fuel.amount=1000) 
+ # Script developed by Natalie Wiley
+      # Originally Developed: February 11th, 2022
+      # Last Update: February 11th, 2022
+      ###### Arguments
+      #CO2.EF           CO2 emissions factor in kg/TJ
+      #fuel.amount      Amount of fuel in TJ
+      #
+      ###### Start Script
+    {
+      ###### Check Validity of Input Data
+      # Check that input fuel data are valid
+      check.fuel.amount<-fuel.amount>0
+      if(!check.fuel.amount) {stop("The amount of fuel must be greater than 0.")}
+    
+      # check that CO2.EF is valid
+      check.CO2.EF<-CO2.EF>0
+      if(!check.CO2.EF) {stop("An individual emission factor has been entered - the EF must be greater than 0.")}
+     
+      #
+      ###### Estimate CO2 emissions
+      # IPCC 2006 GL: CO2 emissions = fuel.amount * EF
+      # Units: CO2 emissions are in kg, fuel.amount is in TJ, and EF is in kg/TG
+      CO2.emissions.kg<-fuel.amount*CO2.EF
+      # convert into MMT
+      CO2.emissions.MMT<-CO2.emissions.kg/10^9
+      
+      ###### Check results
+      check.emission.amount<-CO2.emissions.MMT>0
+      if(!check.emission.amount) {stop("The amount of emissions must be greater than 0.")
+        }
+      ###### Return Statement
+      return(list("CO2.emissions.MMT"=CO2.emissions.MMT))
+      #
+      ###### End Script
+    }
+
+```
+
+### CH4 and N2O Transportation Emissions R Script
+
+```{r eval=FALSE}
+"CH4N2OTransportEmissions"<-
+  function(input.filename="NAME", vehicle.type=1)
+     # Script developed by Natalie Wiley
+      # Originally Developed: February 11th, 2022
+      # Last Update: February 11th, 2022
+  {
+    ###### Import files
+    #getwd()
+    input.data<-read.csv(file=input.filename,header=TRUE,sep=",", fill=FALSE)
+    #
+    ###### Check number of vehicle types in input file
+    check.type<-length(input.data[,1])==vehicle.type
+    if(!check.type) {stop("The number of vehicle types in the input file is not consistent with the number entered in the function argument")
+    }
+    #
+    ###### Check Validity of Input Data
+    for(f in (1: vehicle.type)) {
+      check.fuel.amount<-input.data[f,2]>0
+      if(!check.fuel.amount){stop("Fuel amount must be greater than 0 - check input file.")
+      }
+      check.CH4.ef<-input.data[f,3]>0
+      if(!check.CH4.ef){stop("Methane EF must be greater than 0 - Check input file.")
+      }
+      check.N2O.ef<-input.data[f,4]>0
+      if(!check.N2O.ef){stop("Nitrous Oxide EF must be greater than 0 - Check input file.")
+      }
+      
+    }
+    
+    #
+    ###### Calculate emissions
+    # IPCC 2006 GL: CH4 emissions = Fuel.amount * EF
+    # Units: CH4 emissions in kg, Fuel.amount in TJ and EF is kg/TJ
+    #
+    CH4.emissions.kg<-vector(mode = "numeric", length=vehicle.type)
+    for(ch in (1:vehicle.type)){
+      CH4.emissions.kg[ch]<- input.data[ch,2]*input.data[ch,3]
+    # Check Emissions
+      check.CH4.emissions.kg<-CH4.emissions.kg[ch]>0&CH4.emissions.kg[ch]<=10^12
+      if(!check.CH4.emissions.kg) {cat("Warning: Methane emissions are not within the expected range.")
+        }
+    }
+    
+    # IPCC 2006 GL: N2O emissions = Fuel.amount * EF
+    # Units: N2O emissions in kg, Fuel.amount in TJ and EF is kg/TJ
+    #
+    N2O.emissions.kg<-vector(mode = "numeric", length=vehicle.type)
+    for(ch in (1:vehicle.type)){
+      N2O.emissions.kg[N]<- input.data[N,2]*input.data[N,4]
+    # Check Emissions
+      check.N2O.emissions.kg<-N2O.emissions.kg[N]>0&N2O.emissions.kg[N]<=10^12
+      if(!check.N2O.emissions.kg){cat("Warning: Nitrous Oxide emissions are not within the expected range.")
+        }
+    }
+    
+    # Total emissions in CO2 equivalents
+    Total.CH4.TMT.CO2eq<-(sum(CH4.emissions.kg)/10^6)*25
+    Total.N2O.TMT.CO2eq<-(sum(N2O.emissions.kg)/10^6)*298
+    Total.CH4.N2O.MMT.CO2eq<-(Total.CH4.TMT.CO2eq+Total.N2O.TMT.CO2eq)/10^3
+    #
+    ###### Return Statement
+    return(list("Total.CH4.TMT.CO2eq"=Total.CH4.TMT.CO2eq,
+                "Total.N2O.TMT.CO2eq"=Total.N2O.TMT.CO2eq,
+                "Total.CH4.N2O.MMt.CO2eq"=Total.CH4.N2O.MMt.CO2eq))
+    #
+    ###### End Script
+    }
+
+  
+```

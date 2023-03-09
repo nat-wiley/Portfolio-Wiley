@@ -1,0 +1,286 @@
+---
+title: "Soil Organic Carbon Stock Change"
+---
+
+This R Script estimates the change in soil organic carbon stock in cropland soils between 2005 and 2010. This function uses a Monte Carlo analysis methods from the 2006 IPCC guidelines. This estimation looks at the carbon stock changes among different crop management types such as full and no till including levels of C input.
+
+```{r eval=FALSE}
+"SOC.stockdif"<-function(crop.expert.data="expertdata.csv", land.use.beta="cult 
+                         .betas.csv", land.use.cov="LandUseCov.csv", mgmtbeta="mgmt
+                         .betas.csv", mgmtcov= "MgmtCov.csv", C.input.beta="input
+                         .betas.csv", C.input.cov="CinputCov.csv", x.variables="x
+                         .variables.csv", SOC.ref=80, SOC.ref.sd=36, cropland.area
+                         =56890,cropland.area.sd=2845, D = 20, nreps = 10, iseed
+                         =1234, ncases = 6,  EF.ft=1, EF.med.input = 1, 
+                         nmitscenarios=1, return.option=1)
+```
+
+This is commented code to serve as descriptors for data types used within the function
+
+```{r eval=FALSE}
+ # Script developed by N Wiley
+  # Originally Developed: September 27, 2022
+  # Last Update: October 20, 2022 
+  #
+  
+  #Script estimates the SOC stock change different in cropland soils between 2005 and 2020, also showing SOC changes w/
+      #different management types (full till, no till,) and level of input (low, med, high)
+  
+  
+####### Arguments
+# crop.expert.data      Input file in csv format with data given in proportions of land within defined management cases
+# iseed                 Initial seed value for random draws
+# nreps                 Number of Monte Carlo iterations
+# ncases                Number of Management cases from the expert data
+# beta                  Parameter from lME model used to derive emission factors
+# cov.matrix            Matrix with covariance from LME model used to derive emission factors
+# D                     Stock change dependence (years) (20 comes from IPCC guidelines VOL 4 ch 2)
+# SOC.ref                Reference soil carbon stock
+# SOC.ref.sd             Error associated with soil carbon stock
+# cropland.area                  Land area (hectares)
+# cropland.area.sd               Error associated with area
+# return.option         
+##
+```
+
+```{r eval=FALSE}
+#___________ Begin Script ___________
+
+{  
+  # Set Seed
+  set.seed(iseed)
+  
+  # Load Library
+  
+  #___________ Import Data ____________
+  
+  expert.data<-read.csv(file=crop.expert.data, header=TRUE, sep=",", fill=FALSE)
+  
+  ##Import Betas for EF's
+  landuse.beta<-read.csv(file=land.use.beta, header=F, sep=",")
+  #landuse.beta<-c(landuse.beta[1,])
+  LU.beta<-as.vector(landuse.beta)
+  #landuse.beta<-c(land.use.beta[,1])
+  mgmt.beta<-read.csv(file=mgmtbeta, header=F, sep=",", fill=FALSE )
+  #mgmt.beta<-c(mgmtbeta[,1])
+  Cinput.beta<-read.csv(file=C.input.beta, header=F, sep=",", fill=FALSE)
+  #Cinput.beta<-c(C.input.beta[,1])
+  
+  landuse.cov<-read.csv(file=landuse.cov, header=F, sep=",", fill=FALSE)
+  mgmt.cov<-read.csv(file=mgmtcov, header=F, sep=",", fill=FALSE)
+  Cinput.cov<-read.csv(file=Cinput.cov, header=F, sep=",", fill=FALSE)
+  
+  x.variables<-read.csv(file=x.variables, header=TRUE, sep=",", fill=FALSE)
+  
+```
+
+```{r eval=FALSE}
+ #______________ Create Checks ________________
+  
+  # Check that cropland area and uncertainty is greater than 0
+  check.cropland.area<-cropland.area>=0
+  if(!check.cropland.area) {stop("Cropland area is not greater than 0.")}
+  check.cropland.area.sd<-cropland.area.sd>=0
+  if(!check.cropland.area.sd) {stop("Cropland area standard deviation is not greater than 0.")}
+  
+  # Check that SOC.ref and uncertainty is greater than 0
+  check.SOC.ref<-SOC.ref>=0
+  if(!check.SOC.ref) {stop("SOC reference stock is not greater than 0.")}
+  check.SOC.ref.sd<-SOC.ref.sd>=0
+  if(!check.SOC.ref.sd) {stop("SOC reference stock standard deviation is not greater than 0.")}
+  
+  # Check that proportion amounts equal 1 in each year for each expert
+  
+  
+  #______________ Probabilistic draws for Monte Carlo Simulation_______________
+  
+  # Simulate nreps for SOC.ref
+  
+  SOC.ref.sim<-rnorm(nreps, mean = SOC.ref, sd=SOC.ref.sd)
+#  SOC.ref.sim<-as.matrix(t(SOC.ref.sim))
+  
+  # Simulate nreps for cropland.area
+  
+  area.sim<-rnorm(nreps, mean = cropland.area, sd=cropland.area.sd)
+ # area.sim<-as.matrix(area.sim)
+  
+  # Draw samples from expert proportions (expert.data)
+  
+  #expert.sim<-matrix(0,ncol = nreps, nrow = 12)
+  expert.sim<-expert.data[sample(ncol(expert.data), size = nreps, replace = TRUE)]
+  
+```
+
+```{r eval=FALSE}
+ #______________ Estimate Area _____________
+  
+  area.prop.comb<-sweep(expert.sim, MARGIN=2, area.sim, '*')
+  
+  #These parameters come from the previous LME models to create EF betas and covariances
+  
+  # Determine number of parameters for each EF
+  numpar.landuse<-length(landuse.beta)
+  numpar.mgmt<-length(mgmt.beta)
+  numpar.Cinput<-length(Cinput.beta)
+  
+  # Compute Cholesky decomposition for each EF
+  chol.decomp.landuse<-t(chol(landuse.cov))
+  chol.decomp.mgmt<-t(chol(mgmt.cov))
+  chol.decomp.Cinput<-t(chol(Cinput.cov))
+  
+  # Generate random draws of 0 for each EF in a normal distribution
+
+  random.landuse<-matrix(rnorm(nreps*numpar.landuse),numpar.landuse,nreps)
+  random.mgmt<-matrix(rnorm(nreps*numpar.mgmt),numpar.mgmt,nreps)
+  random.Cinput<-matrix(rnorm(nreps*numpar.Cinput),numpar.Cinput,nreps) 
+  
+  # Simulated betas
+  
+  landuse.EF.beta.sim.intermediatecalc<-(chol.decomp.landuse%*%random.landuse)
+  landuse.EFbeta.sim<-matrix(0, nrow=5, ncol=nreps)
+  for (e in 1:nreps) {
+    landuse.EFbeta.sim[,e]<- ((landuse.EF.beta.sim.intermediatecalc[,e]+landuse.beta[,e]))
+    
+  }
+  mgmt.EF.beta.sim<-(chol.decomp.mgmt%*%random.mgmt)+mgmt.beta
+  Cinput.EF.beta.sim<-(chol.decomp.Cinput%*%random.Cinput)+Cinput.beta
+  
+  
+ 
+  # __________ Estimate Emission Factors __________ (EF = intercept + B1X1) --> put x.cult in model (create csv and import) - then check to make sure that EF reps fit within the CI
+  
+  # Predictor variables from Assignment 2
+  # only need wet factors, not dry, because soils are in only a wet climate (don't use dry factors!)
+  
+  x.landuse<-as.matrix(x.variables[,1])
+  x.landuse<-na.omit(x.landuse)
+  x.rt.wet<-as.vector(x.variables[,2])
+  x.rt.wet<-na.omit(x.rt.wet)
+  x.nt.wet<-as.vector(x.variables[,3])
+  x.nt.wet<-na.omit(x.nt.wet)
+  x.low<-as.vector(x.variables[,4])
+  x.low<-na.omit(x.low)
+  x.high<-as.vector(x.variables[,5])
+  x.high<-na.omit(x.high)
+  
+  
+  # Land use EF reps
+  # The sweep function multiples the beta sim with the predictor variables to get the components of the EF
+  
+  
+  
+ # EF.landuse.sweep<-sweep(landuse.EFbeta.sim, 1, x.landuse, "*")
+  #EF.landuse<-apply(EF.landuse.sweep, MARGIN = 1, FUN = sum)
+ # EF.landuse<-as.matrix(t(EF.landuse))
+  
+EF.landuse<-matrix(0, nrow=numpar.landuse, ncol=nreps)
+for (e in 1:nreps) {
+  EF.landuse[,e]<-(landuse.EFbeta.sim[e,]*x.landuse)
+  
+}
+  
+  
+  
+  # Management EF reps
+  
+  
+  EF.rt.wet.sweep<-sweep(mgmt.EF.beta.sim, 1, x.rt.wet, "*")
+  EF.rt.wet<-apply(EF.rt.wet.sweep, MARGIN = 2, FUN = sum)
+  EF.rt.wet<-as.matrix(t(EF.rt.wet))
+  
+  EF.nt.wet.sweep<-sweep(mgmt.EF.beta.sim, 1, x.nt.wet, "*")
+  EF.nt.wet<-apply(EF.nt.wet.sweep, MARGIN = 2, FUN = sum)
+  EF.nt.wet<-as.matrix(t(EF.nt.wet))
+  
+  # CInput EF reps
+
+  
+  EF.low.sweep<-sweep(Cinput.EF.beta.sim, 1, x.low, "*")
+  EF.low<-apply(EF.low.sweep, MARGIN = 2, FUN = sum)
+  EF.low<-as.matrix(t(EF.low))
+  
+  EF.high.sweep<-sweep(Cinput.EF.beta.sim, 1, x.high, "*")
+  EF.high<-apply(EF.high.sweep, MARGIN = 2, FUN = sum)
+  EF.high<-as.matrix(t(EF.high))
+  
+```
+
+```{r eval=FALSE}
+ #______________ Probabilistic Results _______________
+  # SOC stock changes by case
+  
+  
+  # Case 1: low input, full till
+  SOC.low.ft<-matrix(0, nrow = 1, ncol= nreps)
+  for(r in (1:nreps)) {
+    SOC.low.ft[,r]<-((SOC.ref.sim[,r]*EF.landuse[,r]*EF.ft*EF.low[,r]*area.prop.comb[7,r])-
+                       (SOC.ref.sim[,r]*EF.landuse[,r]*EF.ft*EF.low[,r]*area.prop.comb[1,r]))/D
+  }
+  
+  # Case 2: low input, no till  
+  SOC.low.nt<-matrix(0, nrow = 1, ncol= nreps)
+  for(r in (1:nreps)) {
+    SOC.low.nt[,r]<-((SOC.ref.sim[,r]*EF.landuse[,r]*EF.nt.wet[,r]*EF.low[,r]*area.prop.comb[8,r])-
+                       (SOC.ref.sim[,r]*EF.landuse[,r]*EF.nt.wet[,r]*EF.low[,r]*area.prop.comb[2,r]))/D
+  } 
+  
+  # Case 3: medium input, full till 
+  SOC.med.ft<-matrix(0, nrow = 1, ncol= nreps)
+  for(r in (1:nreps)) {
+    SOC.med.ft[,r]<-((SOC.ref.sim[,r]*EF.landuse[,r]*EF.ft*EF.med.input*area.prop.comb[9,r])-
+                       (SOC.ref.sim[,r]*EF.landuse[,r]*EF.ft*EF.med.input*area.prop.comb[3,r]))/D
+  } 
+  
+  # Case 4: medium input, no till
+  SOC.med.nt<-matrix(0, nrow = 1, ncol= nreps)
+  for(r in (1:nreps)) {
+    SOC.med.nt[,r]<-((SOC.ref.sim[,r]*EF.landuse[,r]*EF.nt.wet[,r]*EF.med.input*area.prop.comb[10,r])-
+                       (SOC.ref.sim[,r]*EF.landuse[,r]*EF.nt.wet[,r]*EF.med.input*area.prop.comb[4,r]))/D
+  } 
+  
+  # Case 5: high input, full till    
+  SOC.high.ft<-matrix(0, nrow = 1, ncol= nreps)
+  for(r in (1:nreps)) {
+    SOC.high.ft[,r]<-((SOC.ref.sim[,r]*EF.landuse[,r]*EF.ft*EF.high[,r]*area.prop.comb[11,r])-
+                        (SOC.ref.sim[,r]*EF.landuse[,r]*EF.ft*EF.high[,r]*area.prop.comb[5,r]))/D
+  }   
+  
+  # Case 6: high input, no till
+  SOC.high.nt<-matrix(0, nrow = 1, ncol= nreps)
+  for(r in (1:nreps)) {
+    SOC.high.nt[,r]<-((SOC.ref.sim[,r]*EF.landuse[,r]*EF.nt.wet[,r]*EF.high[,r]*area.prop.comb[12,r])-
+                        (SOC.ref.sim[,r]*EF.landuse[,r]*EF.nt.wet[,r]*EF.high[,r]*area.prop.comb[6,r]))/D
+  }   
+  
+  # Create results matrix
+  C.stockdif.total<-matrix(0, nrow = 1, ncol = nreps)
+  for (r in (1:nreps)) {
+    C.stockdif.total[,r]<-SOC.low.ft[,r]+SOC.low.nt[,r]+SOC.med.ft[,r]+SOC.med.nt[,r]+SOC.high.ft[,r]+SOC.high.nt[,r]
+  }
+  
+  #___________ Estimate means and confidence intervals of C stock change 2005-2020 ________
+  # Create matrix with col 1 = median, col 2 = 2.5 percentile, and col 3 = 97.5 percentile
+  
+  C.stockdif.results<-matrix(0, nrow = 1, ncol = 3)
+  C.stockdif.results[,1]<-mean(C.stockdif.total)
+  q<-quantile(C.stockdif.total, probs = c(0.025,0.975))
+  C.stockdif.results[,2]<-q[1]
+  C.stockdif.results[,3]<-q[2]
+  
+  
+  #___________ Return Statements ____________
+  
+  if(return.option ==1) {
+    return(list("Island X mean C stock change in mineral cropland soils (C tonnes /yr)"=C.stockdif.results[,1],
+                "2.5 percentile C stock change"=C.stockdif.results[,2], "97.5 percentile C stock change"=C.stockdif.results[,3]))
+  }
+  if(return.option ==2) {
+    return(hist(x=C.stockdif.total, col = "blue3", main = "Simulated SOC change for all replicates from Monte Carlo Simulation", 
+                xlab = "SOC change replicates (C tonnes/yr)", xlim= c(-50000,100000), labels = TRUE))
+  }
+  
+  #____________ End Script ________________
+  
+}
+
+```

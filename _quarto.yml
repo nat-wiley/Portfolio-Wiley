@@ -3,18 +3,35 @@ project:
   output-dir: docs
 
 website:
-  title: "Portfolio-Wiley"
+  title: "Natalie Wiley"
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      - text: "GHG Quantification Projects"
+        menu:
+          - Risk_Assessment.qmd
+          - Electricity_emissions.qmd
+          - Transportation_Emissions.qmd
+          - Emission_Factors.qmd
+          - Datagaps.qmd
+          - Urea_Emissions.qmd
+          - SOC_change_montecarlo.qmd
+          - N2O_SoilEmissions.qmd
+      - href: Geospatial.qmd
+        text: "Geospatial Analysis"
+      - href: COB_report.qmd
+        text: "Sustainability Assessments"
+      - href: Bison_storymap.qmd
+        text: "COP27 Presentation"
+         
 
 format:
   html:
-    theme: cosmo
+    theme: minty
     css: styles.css
     toc: true
+    
 
 editor: visual
 

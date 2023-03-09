@@ -1,11 +1,37 @@
 ---
-title: "Portfolio-Wiley"
+title: "Greenhouse Gas Accounting Portfolio"
+image: Egyptpic.png
+about: 
+  template: trestles
+  image-shape: rectangle
+  image-width: 15em
+  links:
+    - text: LinkedIn
+      href: https://www.linkedin.com/in/wileynatalie/
+    - text: GitHub
+      href: https://github.com/nat-wiley
+    - text: Email
+      href: mailto:Nataliewiley97@gmail.com
 ---
 
-This is a Quarto website.
+## Hey there!
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+Welcome to my portfolio! My name is Natalie Wiley and I'm excited to meet you.
 
-```{r}
-1 + 1
-```
+I am a soon-to-be graduate with a Professional Science Masters in Ecosystem Sustainability, focusing on Carbon management. I am avid birder, mountain biker, and I enjoy doing wildlife photography. As an early-career professional, my expertise lies in greenhouse gas accounting and sustainability!
+
+------------------------------------------------------------------------
+
+# Education
+
+**PSM in Ecosystem Sustainability, *Carbon Management*** (2023)\
+Colorado State University \| Fort Collins, CO
+
+**B.S. in Ecology and Conservation Biology** (2020)\
+University of Idaho \| Moscow, ID
+
+------------------------------------------------------------------------
+
+# Experience
+
+\
