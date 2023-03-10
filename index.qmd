@@ -20,6 +20,8 @@ Welcome to my portfolio! My name is Natalie Wiley and I'm excited to meet you.
 
 I am a soon-to-be graduate with a Professional Science Masters in Ecosystem Sustainability, focusing on Carbon management. I am avid birder, mountain biker, and I enjoy doing wildlife photography. As an early-career professional, my expertise lies in greenhouse gas accounting and sustainability!
 
+> This website was built using Quarto in R Studio
+
 ------------------------------------------------------------------------
 
 # Education
@@ -33,5 +35,40 @@ University of Idaho \| Moscow, ID
 ------------------------------------------------------------------------
 
 # Experience
+
+**Research Assistant** **- Agroforestry** `(2023 - present)`\
+*Natural Resource Ecology Laboratory\
+*Colorado State University \| Fort Collins, CO
+
+**Greenhouse Gas and Sustainability Fellow** `(2022)`\
+*College of Business\
+*Colorado State University \| Fort Collins, CO
+
+**Graduate Teaching Assistant** `(2021 - present)`\
+*Department of Ecosystem Science and Sustainability\
+*Colorado State University \| Fort Collins, CO
+
+**Social Services Assistant - GS 5** `(2020-2021)`*United State Forest Service - USDA\
+*Umatilla NF \| Pomeroy, WA
+
+### Skills
+
+::: panel-tabset
+## Coding Languages
+
+Base R Studio, Tidyverse, R Shiny, R Markdown/Bookdown
+
+## Tools and Software
+
+Open LCA, ArcGIS, COMET-farm, Microsoft suite, ALU GHG Inventory, SIMAP
+
+## Hard skills
+
+Database organization, Remote sensing, Teaching, Technical report writing, QA/QC
+
+## Soft skills
+
+Project management, Innovation, Critical thinking, Teamwork, Adaptability, Communication, Leading project development
+:::
 
 \

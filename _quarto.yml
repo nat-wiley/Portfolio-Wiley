@@ -8,7 +8,7 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - text: "GHG Quantification Projects"
+      - text: "GHG Inventory Projects"
         menu:
           - Risk_Assessment.qmd
           - Electricity_emissions.qmd
@@ -28,7 +28,7 @@ website:
 
 format:
   html:
-    theme: minty
+    theme: simplex
     css: styles.css
     toc: true
     
